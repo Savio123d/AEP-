@@ -1,0 +1,184 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <locale.h>
+#define MAX_USUARIOS 100 // Define o número máximo de usuários permitido
+
+// Estrutura para armazenar dados de um usuário (nome e senha)
+struct Usuario {
+    char nome[50];
+    char senha[50];
+};
+
+// Variáveis globais
+Usuario usuarios[MAX_USUARIOS]; // Array para armazenar os usuários
+int totalUsuarios = 0;          // Contador de usuários no sistema
+
+// Declaração das funções que serão implementadas
+void carregarUsuarios();
+void salvarUsuarios();
+void cadastrarUsuario();
+void alterarUsuario();
+void excluirUsuario();
+void listarUsuarios();
+void criptografar(char *texto, int chave);
+void descriptografar(char *texto, int chave);
+void ordenarUsuarios();
+void menu();
+
+// Função para carregar usuários do arquivo 'usuarios.txt'
+void carregarUsuarios() {
+    FILE *arquivo = fopen("usuarios.txt", "r"); // Abre o arquivo em modo de leitura
+    if (!arquivo) { // Verifica se o arquivo foi encontrado
+        printf("Arquivo de usuários não encontrado.\n");
+        return;
+    }
+
+    totalUsuarios = 0; // Reseta o contador de usuários
+    // Lê cada linha do arquivo para popular o array de usuários
+    while (fscanf(arquivo, "%49s %49s", usuarios[totalUsuarios].nome, usuarios[totalUsuarios].senha) == 2) {
+        int chave;
+        chave = strlen(usuarios[totalUsuarios].senha);  // Usa o comprimento da senha como chave de criptografia
+        descriptografar(usuarios[totalUsuarios].nome, chave); // Descriptografa o nome
+        descriptografar(usuarios[totalUsuarios].senha, chave); // Descriptografa a senha
+        totalUsuarios++; // Incrementa o número total de usuários
+    }
+    fclose(arquivo); // Fecha o arquivo após a leitura
+}
+
+// Função para salvar os usuários no arquivo 'usuarios.txt'  
+void salvarUsuarios() {
+    ordenarUsuarios(); // Ordena os usuários antes de salvar
+    FILE *arquivo = fopen("usuarios.txt", "w"); // Abre o arquivo em modo de gravação
+    if (!arquivo) { // Verifica se o arquivo foi aberto corretamente
+        printf("Erro ao abrir o arquivo para gravação.\n");
+    }
+
+    // Grava cada usuário no arquivo
+    for (int i = 0; i < totalUsuarios; i++) {
+        int chave = strlen(usuarios[i].senha); // Calcula a chave como o comprimento da senha
+        criptografar(usuarios[i].nome, chave); // Criptografa o nome
+        criptografar(usuarios[i].senha, chave); // Criptografa a senha
+        fprintf(arquivo, "%s %s\n", usuarios[i].nome, usuarios[i].senha); // Grava no arquivo
+        descriptografar(usuarios[i].nome, chave); // Reverte a criptografia para o uso posterior no programa
+        descriptografar(usuarios[i].senha, chave); // Reverte a criptografia
+    }
+
+    fclose(arquivo); // Fecha o arquivo após a gravação
+    printf("Usuários salvos com sucesso.\n");
+}
+
+// Função para cadastrar um novo usuário
+void cadastrarUsuario() {
+    if (totalUsuarios >= MAX_USUARIOS) { // Verifica se o limite de usuários foi atingido
+        printf("Limite de usuários atingido.\n");
+        return;
+    }
+
+    printf("Digite o nome do novo usuário: ");
+    scanf(" %49[^\n]", usuarios[totalUsuarios].nome); // Lê o nome do usuário
+    printf("Digite a senha do novo usuário: ");
+    scanf(" %49[^\n]", usuarios[totalUsuarios].senha); // Lê a senha do usuário
+
+    totalUsuarios++; // Incrementa o total de usuários
+    salvarUsuarios(); // Salva os usuários após o cadastro
+}
+
+// Função para alterar os dados de um usuário existente
+void alterarUsuario() {
+    int numero;
+    printf("Qual usuário deseja alterar (número): ");
+    scanf("%d", &numero);
+    numero--; // Decrementa para acessar o índice correto
+
+    if (numero >= 0 && numero < totalUsuarios) { // Verifica se o número do usuário é válido
+        printf("Digite o novo nome do usuário: ");
+        scanf(" %49[^\n]", usuarios[numero].nome); // Lê o novo nome
+        printf("Digite a nova senha do usuário: ");
+        scanf(" %49[^\n]", usuarios[numero].senha); // Lê a nova senha
+        salvarUsuarios(); // Salva as alterações
+    } else {
+        printf("Número de usuário inválido!\n");
+    }
+}
+
+// Função para excluir um usuário
+void excluirUsuario() {
+    int numero;
+    printf("Qual usuário deseja excluir (número): ");
+    scanf("%d", &numero);
+    numero--; // Decrementa para acessar o índice correto
+
+    if (numero >= 0 && numero < totalUsuarios) { // Verifica se o número do usuário é válido
+        // Desloca os usuários para "preencher" o espaço deixado pelo usuário excluído
+        for (int i = numero; i < totalUsuarios - 1; i++) {
+            usuarios[i] = usuarios[i + 1];
+        }
+        totalUsuarios--; // Decrementa o total de usuários
+        salvarUsuarios(); // Salva os usuários após a exclusão
+        printf("Usuário excluído com sucesso!\n");
+    } else {
+        printf("Número de usuário inválido!\n");
+    }
+}
+
+// Função para listar todos os usuários cadastrados
+void listarUsuarios() {
+    printf("Listagem de Usuários:\n");
+    for (int i = 0; i < totalUsuarios; i++) { // Percorre todos os usuários
+        printf("Usuário %d - %s\n", i + 1, usuarios[i].nome); // Exibe o índice e o nome do usuário
+    }
+}
+
+// Função de criptografia de texto usando a chave fornecida
+void criptografar(char *texto, int chave) {
+    while (*texto) { // Percorre cada caractere do texto
+        *texto = (*texto + chave) % 128; // Altera o valor ASCII do caractere com base na chave
+        texto++;
+    }
+}
+
+// Função de descriptografia de texto usando a chave fornecida
+void descriptografar(char *texto, int chave) {
+    while (*texto) { // Percorre cada caractere do texto
+        *texto = (*texto - chave + 128) % 128; // Restaura o valor ASCII original
+        texto++;
+    }
+}
+
+// Função para ordenar os usuários em ordem alfabética com base no nome
+void ordenarUsuarios() {
+    for (int i = 0; i < totalUsuarios - 1; i++) {
+        for (int j = i + 1; j < totalUsuarios; j++) {
+            if (strcmp(usuarios[i].nome, usuarios[j].nome) > 0) { // Compara os nomes
+                Usuario temp = usuarios[i]; // Troca a posição dos usuários se necessário
+                usuarios[i] = usuarios[j];
+                usuarios[j] = temp;
+            }
+        }
+    }
+}
+
+// Função de menu principal para o usuário escolher uma operação
+void menu() {
+    int opcao;
+    do {
+        printf("\n1 - Cadastrar Usuário\n2 - Alterar Usuário\n3 - Excluir Usuário\n4 - Listar Usuários\n5 - Sair\nEscolha uma opção: ");
+        scanf("%d", &opcao); // Lê a opção escolhida pelo usuário
+        switch (opcao) {
+            case 1: cadastrarUsuario(); break;
+            case 2: alterarUsuario(); break;
+            case 3: excluirUsuario(); break;
+            case 4: listarUsuarios(); break;
+            case 5: exit(0); // Encerra o programa
+            default: printf("Opção Inválida!\n"); break;
+        }
+    } while (opcao != 5); // Continua o loop até o usuário escolher sair
+}
+
+int main() {
+    setlocale(LC_ALL, "Portuguese"); // Configura o uso de caracteres em português
+    carregarUsuarios(); // Carrega os usuários do arquivo
+    menu(); // Exibe o menu para o usuário
+    return 0;
+}
